@@ -1,0 +1,28 @@
+You are taking over this repository as the implementation owner.
+
+Read `AGENTS.md` and `CODEX_MASTER_HANDOFF.md` completely, then inspect the current repository and git status before changing anything.
+
+Do not give me a tutorial or stop after a plan. Build the Münster apartment agent described in the handoff into a finished, tested tool in this workspace.
+
+Work autonomously: edit/refactor files yourself, install needed development dependencies, run tests/linters/smoke tests, fix failures, and continue. Do not repeatedly ask me to run commands you can run.
+
+Important correction: local llama.cpp/Gemma was too slow and produced poor German, so disable it in the production hot path. Use deterministic prefilters plus one cloud AI call for viable listings whenever practical, with configurable fallback order Anthropic -> OpenAI -> Gemini. Keep provider/model configuration in `.env`.
+
+I will only do human-only actions:
+1. place API keys into `.env`;
+2. set the Bewerbermappe absolute file path;
+3. complete one-time WG-Gesucht/Gmail login, OAuth, CAPTCHA or 2FA if required.
+
+Never ask me to paste API keys into this chat or into source code.
+
+Keep real sending disabled by default. Complete tests and live DRY_RUN first. Build Playwright to reach/fill the message composer and attach allowed documents but stop before Send in dry-run. Actual send must exist only behind explicit `AUTO_SEND=true` and all deterministic validation gates.
+
+When existing code conflicts with the handoff, the handoff wins.
+
+Continue until the acceptance criteria are satisfied as far as this machine/account access permits.
+
+At the end, report only:
+- what is finished;
+- any remaining human-only steps;
+- the exact command(s) to start/stop/use the tool;
+- remaining risks/limitations.

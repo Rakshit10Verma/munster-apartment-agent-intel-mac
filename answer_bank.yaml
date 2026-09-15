@@ -1,0 +1,42 @@
+confirmed_answer_bank:
+  card_games:
+    favorites: ["Skyjo", "Flip 7"]
+    also_likes: ["Uno"]
+    doppelkopf: "does not play"
+  food:
+    cuisines: ["Italian", "Korean", "Indian"]
+    go_to_dish: "chicken pasta with cream sauce"
+    german_go_to_dish: "Hähnchenpasta mit Sahnesoße"
+    cooking_style: "sometimes cooks properly; otherwise meal-preps or makes quick meals"
+    diet: "eats everything and is relaxed about other people's diets"
+  favorite_drink: "coconut water"
+  music: ["90s Bollywood", "Kanye West", "Eminem"]
+  fictional_character: "does not really relate to a fictional character; does not watch many films/series and prefers being himself"
+  alcohol: "sometimes at gatherings or parties; not regularly"
+  partying: "roughly once a month or once every 2-3 months, mainly occasions or gatherings"
+  weekend: "relaxes, works on hobbies, and works on personal projects"
+  ideal_wg_activities: ["playing cards together", "eating together"]
+  sports: ["cycling", "bouldering", "gym about 4 times per week", "open to trying new sports"]
+  study_routine: "mostly studies in the library"
+  home_office: "works 7-8 hours with a 30-40 minute food break"
+  ideal_wg_atmosphere: "cool, chill environment with fun people"
+  dislikes_in_wg: ["messy kitchen", "messy bathroom", "messy common space"]
+  cleaning: "follows the WG cleaning plan; otherwise roughly weekly"
+  friends_visiting: "around 1-2 times per week"
+  personality_noise: "generally a quiet person"
+  morning_or_night: "morning person; likes first sunlight and the morning breeze"
+  partner: "partner lives in Berlin and would visit rarely"
+  overnight_guests: "generally no overnight guests"
+  parties_at_home: "does not host parties at home"
+  sustainability: "tries to use paper carefully and reduce waste and unnecessary water use"
+  travel: "travels during vacations, often for around a week"
+  favorite_season: "summer"
+  politics: "prefer not to answer"
+  sensitive_identity_questions: "prefer not to answer"
+
+resolution_policy:
+  exact_or_semantic_match: "auto_answer"
+  safe_synthesis_from_confirmed_facts: "auto_answer"
+  unknown_subjective_preference: "do_not_invent"
+  unknown_high_stakes_or_contractual_fact: "block_auto_send"
+  explicit_listing_command: "obey_exactly"

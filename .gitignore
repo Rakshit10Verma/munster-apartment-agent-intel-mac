@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+logs/
+browser-profile/
+credentials.json
+token.json
+*.sqlite
+*.db
+.DS_Store

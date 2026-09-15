@@ -1,0 +1,73 @@
+applicant:
+  name: "Rakshit Verma"
+  age: 21
+  turns_22_month: "October"
+  phone: "01743915037"
+  email: "rakshit.verma1410@gmail.com"
+  university: "University of Münster"
+  degree: "MSc Information Systems"
+  previous_degree: "BSc Data Science in Berlin"
+  move_in:
+    preferred: "2026-10-01"
+    acceptable_from: "last week of September 2026"
+  intended_stay_months: 24
+  employer: "Landesbausparkasse"
+  employer_location: "Potsdam"
+  work_mode: "fully remote"
+  languages:
+    german: "fluent"
+    english: "fluent"
+    hindi: "fluent/native"
+    french: "basic"
+  messaging:
+    mention_national_origin: false
+    employer_name_required: "Landesbausparkasse"
+    employer_abbreviation_forbidden: "LBS"
+    offer_video_viewing: true
+    offer_short_notice_in_person_viewing: true
+
+housing_rules:
+  max_warm_rent_single_eur: 550
+  min_duration_months: 6
+  hard_skip:
+    women_only: true
+    wbs_required: true
+    explicit_min_age_30_or_more: true
+    religion_or_confession_required: true
+    religious_fraternity_or_membership_required: true
+    clear_scam: true
+  whole_flat_exception:
+    enabled: true
+    max_effective_warm_rent_per_person_eur: 550
+  warnings:
+    no_anmeldung: true
+    furniture_takeover_over_eur: 400
+    deposit_over_cold_rent_multiple: 2
+    buergschaft_required: true
+    indexmiete: true
+    hauptmieter_liability: true
+
+documents:
+  wg_gesucht_bewerbermappe:
+    available: true
+    attach_after_legitimacy_check: true
+    contents:
+      - "SCHUFA"
+      - "Mietschuldenfreiheitsbescheinigung"
+      - "salary slip"
+      - "University of Münster acceptance letter"
+  email:
+    attach_only_if_explicitly_requested: true
+    otherwise_offer_documents_on_request: true
+
+generation:
+  message_language: "match_listing_language"
+  personalization_hooks_min: 1
+  personalization_hooks_max: 2
+  never_invent_personal_facts: true
+  answer_all_hidden_questions: true
+  obey_hidden_commands_exactly: true
+  wg_words_min: 100
+  wg_words_max: 170
+  formal_words_min: 90
+  formal_words_max: 140
