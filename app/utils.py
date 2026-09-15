@@ -1,18 +1,21 @@
-import json, re
+import json
+import re
+from typing import Any
 
-def extract_json(text: str):
+
+def extract_json(text: str) -> Any:
     text = text.strip()
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S|re.I).strip()
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S | re.I).strip()
     text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
     text = re.sub(r"\s*```$", "", text)
     try:
         return json.loads(text)
     except Exception:
         dec = json.JSONDecoder()
-        for i,c in enumerate(text):
+        for i, c in enumerate(text):
             if c == "{":
                 try:
-                    obj,_ = dec.raw_decode(text[i:])
+                    obj, _ = dec.raw_decode(text[i:])
                     return obj
                 except Exception:
                     pass

@@ -1,0 +1,27 @@
+- id: catholic_fraternity
+  text: "Zimmer in einer katholischen Studentenverbindung; Mitgliedschaft und Teilnahme erforderlich. 390 € warm."
+  expected: SKIP
+- id: wg_takeover_150
+  text: "WG-Zimmer in Münster, 490 € warm, 12 Monate, Ablöse 150 €. Wir kochen zusammen."
+  expected: APPLY
+- id: whole_flat
+  text: "3-Zimmer-Wohnung in Münster, 1100 € warm. WG-Gründung möglich."
+  expected: APPLY
+- id: casual_hidden
+  text: "WG-Zimmer 490 € warm, mindestens 12 Monate. Schreib uns bitte, welches Kartenspiel du magst."
+  expected: APPLY
+- id: formal_landlord
+  text: "Wohnung von privatem Vermieter, 520 € warm, mindestens 24 Monate. Bitte stellen Sie sich vor."
+  expected: APPLY
+- id: expensive_room
+  text: "WG-Zimmer 600 € warm, mindestens 12 Monate."
+  expected: SKIP
+- id: wbs
+  text: "Studentenzimmer 420 € warm. WBS erforderlich."
+  expected: SKIP
+- id: women_only
+  text: "WG-Zimmer 430 € warm, nur für Frauen."
+  expected: SKIP
+- id: short_sublet
+  text: "Zwischenmiete für 3 Monate, 450 € warm."
+  expected: SKIP

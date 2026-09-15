@@ -10,3 +10,10 @@ token.json
 *.sqlite
 *.db
 .DS_Store
+vendor/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+playwright-report/
+test-results/
+*.eml

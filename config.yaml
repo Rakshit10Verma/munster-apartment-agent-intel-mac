@@ -71,3 +71,11 @@ generation:
   wg_words_max: 170
   formal_words_min: 90
   formal_words_max: 140
+
+sources:
+  priority: ["wg_gesucht", "asta_muenster", "na_dann", "kleinanzeigen"]
+  low_frequency_interval_seconds: 900
+
+contact:
+  allowed_attachment_suffixes: [".pdf"]
+  max_attachment_bytes: 15000000
