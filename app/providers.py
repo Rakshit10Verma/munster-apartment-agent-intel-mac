@@ -40,7 +40,7 @@ ProviderCaller = Callable[[str, str, Settings], ProviderCall]
 
 def _safe_error(provider: str, exc: Exception) -> str:
     text = str(exc)
-    for key_name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"):
+    for key_name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "FREELLM_API_KEY"):
         secret = os.getenv(key_name, "")
         if secret:
             text = text.replace(secret, "<redacted>")
@@ -146,6 +146,49 @@ def call_openai(system: str, prompt: str, settings: Settings) -> ProviderCall:
         raise ProviderError(_safe_error("openai", exc)) from exc
 
 
+def call_freellm(system: str, prompt: str, settings: Settings) -> ProviderCall:
+    key = settings.freellm_api_key.strip()
+    if not key:
+        raise ProviderUnavailable("freellm: key not configured")
+    model = settings.freellm_model.strip()
+    if not model:
+        raise ProviderUnavailable("freellm: model not configured")
+    base_url = settings.freellm_base_url.strip()
+    if not base_url:
+        raise ProviderUnavailable("freellm: base URL not configured")
+    started = time.monotonic()
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(
+            api_key=key,
+            base_url=base_url,
+            timeout=float(settings.provider_timeout_seconds("freellm")),
+            max_retries=0,
+        )
+        response = client.responses.create(
+            model=model,
+            instructions=f"{system}\nReturn only JSON, without Markdown fences.",
+            input=prompt,
+        )
+        data = _parse(response.output_text, "freellm")
+        usage = response.usage
+        return ProviderCall(
+            data,
+            ProviderMetadata(
+                provider="freellm",
+                model=model,
+                latency_ms=round((time.monotonic() - started) * 1000),
+                input_tokens=_usage_value(usage, "input_tokens"),
+                output_tokens=_usage_value(usage, "output_tokens"),
+            ),
+        )
+    except ProviderSchemaError:
+        raise
+    except Exception as exc:
+        raise ProviderError(_safe_error("freellm", exc)) from exc
+
+
 def call_gemini(system: str, prompt: str, settings: Settings) -> ProviderCall:
     key = os.getenv("GEMINI_API_KEY", "").strip()
     if not key:
@@ -195,6 +238,7 @@ DEFAULT_CALLERS: dict[str, ProviderCaller] = {
     "anthropic": call_anthropic,
     "openai": call_openai,
     "gemini": call_gemini,
+    "freellm": call_freellm,
 }
 _PROVIDER_COOLDOWN_UNTIL: dict[str, float] = {}
 
