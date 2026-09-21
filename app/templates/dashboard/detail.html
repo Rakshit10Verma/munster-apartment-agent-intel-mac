@@ -1,0 +1,72 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Listing {{ record.id }} · Apartment Agent{% endblock %}
+{% block content %}
+  <div class="title-row">
+    <h1>Listing {{ record.id }}: {{ row.title or '(no title)' }}</h1>
+    {% if row.canonical_url %}<a class="button" href="{{ row.canonical_url }}" target="_blank" rel="noopener">Open WG-Gesucht</a>{% endif %}
+  </div>
+
+  <section><h2>Original listing</h2>
+    <dl><dt>Platform</dt><dd>{{ row.platform }}</dd><dt>Listing ID</dt><dd>{{ row.listing_id }}</dd>
+      <dt>URL</dt><dd>{{ row.canonical_url }}</dd><dt>Updated</dt><dd>{{ row.updated_at }}</dd></dl>
+    <pre>{{ row.raw_text }}</pre>
+  </section>
+
+  <section><h2>Extracted facts</h2><pre>{{ record.facts.model_dump_json(indent=2) }}</pre></section>
+
+  <section><h2>Filtering and decision</h2>
+    <dl><dt>Status</dt><dd>{{ record.status }}</dd><dt>Decision</dt><dd>{{ record.decision.decision }}</dd>
+      <dt>Current reason</dt><dd>{{ current_reason }}</dd>
+      <dt>Historical/debug reasons</dt><dd>{{ record.reasons|join('; ') }}</dd>
+      <dt>Hard skips</dt><dd>{{ record.decision.hard_skip_reasons|join('; ') or 'none' }}</dd>
+      <dt>Warnings</dt><dd>{{ record.warnings|join('; ') or 'none' }}</dd>
+      <dt>Age mismatch</dt><dd>{{ record.facts.age_mismatch }} ({{ record.facts.age_min or '?' }}–{{ record.facts.age_max or '?' }}, {{ record.facts.age_requirement_strength }})</dd></dl>
+  </section>
+
+  <section><h2>Hidden questions and commands</h2>
+    {% if record.facts.hidden_questions or record.facts.hidden_commands %}
+      <ul>
+        {% for q in record.facts.hidden_questions %}<li>Question {{ q.id }}: {{ q.question }} — {{ 'answered' if record.message and q.id in record.message.answered_question_ids else 'unresolved' }}</li>{% endfor %}
+        {% for c in record.facts.hidden_commands %}<li>Command {{ c.id }}: {{ c.instruction }} — {{ 'applied' if record.message and c.id in record.message.applied_command_ids else 'unresolved' }}</li>{% endfor %}
+      </ul>
+    {% else %}<p>None detected.</p>{% endif %}
+  </section>
+
+  <section><h2>Generation</h2>
+    <dl><dt>AI attempted</dt><dd>{{ record.generation_trace.ai_attempted }}</dd>
+      <dt>Provider/model</dt><dd>{{ row.provider or 'none' }} / {{ row.model or '' }}</dd>
+      <dt>AI failure</dt><dd>{{ record.generation_trace.ai_failure_reason or row.error or 'none' }}</dd>
+      <dt>Fallback used</dt><dd>{{ record.generation_trace.fallback_used }}</dd>
+      <dt>Fallback scenario</dt><dd>{{ record.generation_trace.fallback_scenario or 'none' }}</dd>
+      <dt>Fallback template</dt><dd>{{ record.generation_trace.fallback_template or 'none' }}</dd>
+      <dt>Optional clauses</dt><dd>{{ record.generation_trace.optional_clauses|join(', ') or 'none' }}</dd></dl>
+    <h3>Deterministic hidden-question answers</h3>
+    {% if record.generation_trace.hidden_question_answers %}
+      <ul>{% for answer in record.generation_trace.hidden_question_answers %}<li>{{ answer.question_id }} / {{ answer.category }} / {{ answer.answer_source }}: {{ answer.answer }}</li>{% endfor %}</ul>
+    {% else %}<p>None.</p>{% endif %}
+  </section>
+
+  <section><h2>Exact message</h2>
+    {% if record.message %}<p><strong>Subject:</strong> {{ record.message.subject or '(none)' }}</p><pre class="message">{{ record.message.body }}</pre>{% else %}<p>No draft exists.</p>{% endif %}
+  </section>
+
+  <section><h2>Bewerbermappe and send gates</h2>
+    <p>Attachment policy: {{ record.attachment.model_dump_json() }}</p>
+    <table class="gates"><tbody>{% for name, value in gates.items() %}<tr><th>{{ name }}</th><td>{{ value }}</td></tr>{% endfor %}</tbody></table>
+  </section>
+
+  <section><h2>Send and reconciliation history</h2>
+    <h3>Contact attempts</h3><pre>{{ history.contact_attempts }}</pre>
+    <h3>Events</h3><pre>{{ history.events }}</pre>
+    {% if screenshot %}<p>Latest browser screenshot: {{ screenshot }}</p>{% endif %}
+  </section>
+
+  <section class="actions"><h2>Actions</h2>
+    <a class="button primary" href="{{ url_for('approve', listing_db_id=record.id) }}">Approve &amp; Send</a>
+    <a class="button danger" href="{{ url_for('reject', listing_db_id=record.id) }}">Reject</a>
+    <form method="post" action="{{ url_for('reconcile', listing_db_id=record.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit">Reconcile (read-only)</button>
+    </form>
+  </section>
+{% endblock %}

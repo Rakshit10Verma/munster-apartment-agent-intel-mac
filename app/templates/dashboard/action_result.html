@@ -1,0 +1,8 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Action result · Listing {{ record.id }}{% endblock %}
+{% block content %}
+  <h1>Action result</h1>
+  <dl><dt>Success</dt><dd>{{ action.ok }}</dd><dt>Status</dt><dd>{{ action.status }}</dd><dt>Detail</dt><dd>{{ action.detail }}</dd></dl>
+  {% if action.contact_result and action.contact_result.screenshot_path %}<p>Screenshot: {{ action.contact_result.screenshot_path }}</p>{% endif %}
+  <p><a class="button" href="{{ url_for('detail', listing_db_id=record.id) }}">Back to listing</a></p>
+{% endblock %}

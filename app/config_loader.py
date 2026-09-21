@@ -8,6 +8,8 @@ from typing import Any
 import yaml
 from dotenv import load_dotenv
 
+from .schemas import SendTrigger
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -37,11 +39,16 @@ def resolve_path(value: str, default: str) -> Path:
 class Settings:
     provider_order: tuple[str, ...]
     ai_timeout_seconds: int
+    anthropic_timeout_seconds: int
+    openai_timeout_seconds: int
+    gemini_timeout_seconds: int
     ai_max_retries: int
     ai_provider_cooldown_seconds: int
     dry_run: bool
     auto_send: bool
     bewerbermappe_path: Path | None
+    wg_use_premium_boost: bool
+    wg_premium_strict: bool
     browser_headless: bool
     browser_profile_path: Path
     browser_timeout_seconds: int
@@ -53,10 +60,36 @@ class Settings:
     gmail_token_path: Path
     gmail_alert_query: str
     log_level: str
+    telegram_enabled: bool
+    telegram_bot_token: str
+    telegram_allowed_user_id: int | None
+    telegram_chat_id: str
+    applicant_photo_path: Path | None = None
 
-    @property
-    def sending_enabled(self) -> bool:
-        return self.auto_send and not self.dry_run
+    def send_permitted(self, trigger: SendTrigger) -> bool:
+        """Whether `trigger` may perform a REAL send right now.
+
+        DRY_RUN is absolute: it overrides every trigger, unconditionally. Below that,
+        AUTO_SEND only gates the daemon's own autonomous trigger ("auto") -- it does
+        NOT gate an explicit human approval (manual_cli/telegram/dashboard), since
+        AUTO_SEND=false means "no autonomous daemon send", not "disable human-approved
+        sending". Every other safety gate (dedup, Bewerbermappe, required-fact
+        validation, scam checks, send verification) is unaffected by this and still
+        applies identically regardless of trigger -- this only decides who may
+        initiate a send attempt in the first place.
+        """
+        if self.dry_run:
+            return False
+        if trigger == "auto":
+            return self.auto_send
+        return True
+
+    def provider_timeout_seconds(self, provider: str) -> int:
+        return {
+            "anthropic": self.anthropic_timeout_seconds,
+            "openai": self.openai_timeout_seconds,
+            "gemini": self.gemini_timeout_seconds,
+        }.get(provider, self.ai_timeout_seconds)
 
 
 def load_yaml(name: str) -> dict[str, Any]:
@@ -79,14 +112,25 @@ def load_settings() -> Settings:
     if unknown:
         raise ValueError(f"unsupported AI providers: {', '.join(unknown)}")
     document = os.getenv("BEWERBERMAPPE_PATH", "").strip()
+    photo = os.getenv("APPLICANT_PHOTO_PATH", "").strip()
+    default_ai_timeout = env_int("AI_TIMEOUT_SECONDS", 30)
+    openai_timeout = env_int("OPENAI_TIMEOUT_SECONDS", default_ai_timeout)
+    if openai_timeout < 20:
+        raise ValueError("OPENAI_TIMEOUT_SECONDS must be at least 20 seconds")
     return Settings(
         provider_order=order,
-        ai_timeout_seconds=env_int("AI_TIMEOUT_SECONDS", 35),
+        ai_timeout_seconds=default_ai_timeout,
+        anthropic_timeout_seconds=env_int("ANTHROPIC_TIMEOUT_SECONDS", default_ai_timeout),
+        openai_timeout_seconds=openai_timeout,
+        gemini_timeout_seconds=env_int("GEMINI_TIMEOUT_SECONDS", default_ai_timeout),
         ai_max_retries=env_int("AI_MAX_RETRIES", 1),
         ai_provider_cooldown_seconds=env_int("AI_PROVIDER_COOLDOWN_SECONDS", 300),
         dry_run=env_bool("DRY_RUN", True),
         auto_send=env_bool("AUTO_SEND", False),
         bewerbermappe_path=resolve_path(document, document) if document else None,
+        applicant_photo_path=resolve_path(photo, photo) if photo else None,
+        wg_use_premium_boost=env_bool("WG_USE_PREMIUM_BOOST", True),
+        wg_premium_strict=env_bool("WG_PREMIUM_STRICT", False),
         browser_headless=env_bool("BROWSER_HEADLESS", False),
         browser_profile_path=resolve_path(
             os.getenv("BROWSER_PROFILE_PATH", ""), "browser-profile/wg-gesucht"
@@ -104,6 +148,12 @@ def load_settings() -> Settings:
             "GMAIL_ALERT_QUERY", "newer_than:2d (from:wg-gesucht.de OR subject:(WG-Gesucht))"
         ),
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
+        telegram_enabled=env_bool("TELEGRAM_ENABLED", False),
+        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
+        telegram_allowed_user_id=(
+            int(raw_id) if (raw_id := os.getenv("TELEGRAM_ALLOWED_USER_ID", "").strip()) else None
+        ),
+        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", "").strip(),
     )
 
 

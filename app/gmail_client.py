@@ -128,11 +128,13 @@ def send_gmail(
     subject: str,
     body: str,
     attachment: Path | None = None,
+    *,
+    send_permitted: bool,
 ) -> ContactResult:
-    if not settings.sending_enabled:
+    if not send_permitted:
         return ContactResult(
             status="dry_run_ready",
-            detail="Gmail draft validated; sending disabled by DRY_RUN/AUTO_SEND",
+            detail="Gmail draft validated; sending not permitted for this trigger",
         )
     message = EmailMessage()
     message["To"] = recipient

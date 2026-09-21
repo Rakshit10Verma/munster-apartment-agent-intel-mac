@@ -60,6 +60,18 @@ def test_valid_natural_message_passes(config: dict) -> None:
     assert result.auto_send_allowed, result.errors
 
 
+def test_changed_required_german_wg_closing_is_blocked(config: dict) -> None:
+    draft = valid_draft()
+    draft.body = draft.body.replace("natürlich am einfachsten", "am besten")
+    assert any("viewing/closing" in item for item in errors_for(config, valid_facts(), draft))
+
+
+def test_wg_message_must_not_mention_bewerbermappe(config: dict) -> None:
+    draft = valid_draft()
+    draft.body = "Meine Bewerbermappe ist angehängt.\n\n" + draft.body
+    assert any("Bewerbermappe" in item for item in errors_for(config, valid_facts(), draft))
+
+
 @pytest.mark.parametrize(
     ("bad_text", "expected"),
     [
@@ -113,6 +125,16 @@ def test_known_bad_card_sentence_is_blocked(config: dict) -> None:
         flags=re.S,
     )
     assert any("card-game" in item for item in errors_for(config, valid_facts(), draft))
+
+
+def test_unnecessary_favorite_food_self_cooking_add_on_is_blocked(config: dict) -> None:
+    draft = valid_draft()
+    draft.body = draft.body.replace(
+        "Ich suche ein langfristiges Zuhause für ungefähr zwei Jahre.",
+        "Mein Lieblingsessen ist Hähnchenpasta mit Sahnesoße; das würde ich zum Einzug "
+        "natürlich auch gerne selbst kochen.",
+    )
+    assert any("self-cooking" in item for item in errors_for(config, valid_facts(), draft))
 
 
 def test_proof_of_reading_instruction_restatement_is_blocked(config: dict) -> None:
@@ -235,3 +257,51 @@ def test_document_policy_violation_is_blocked(config: dict) -> None:
         config,
     )
     assert any("document policy" in item for item in result.errors)
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "Ich bringe die nötige Reife für ein entspanntes Zusammenleben mit.",
+        "Ich erfülle die Anforderungen des Inserats vollständig.",
+        "Ich bin überzeugt, gut zu euch zu passen.",
+    ],
+)
+def test_generic_application_phrasing_is_blocked(phrase: str, config: dict) -> None:
+    draft = valid_draft()
+    draft.body += f" {phrase}"
+    assert any(
+        "generic" in item and "natural" in item for item in errors_for(config, valid_facts(), draft)
+    )
+
+
+def test_generic_application_phrasing_allowed_for_formal_landlord(config: dict) -> None:
+    listing = viable_listing(
+        raw_text="Studio von einem privaten Vermieter. Bitte stellen Sie sich vor."
+    )
+    facts = valid_facts().model_copy(
+        update={"housing_type": "studio", "advertiser_type": "private_landlord"}
+    )
+    draft = valid_draft().model_copy(update={"address_register": "sie"})
+    draft.body += " Ich erfülle die Anforderungen des Inserats vollständig."
+    result = validate_message(
+        listing, facts, RuleDecision(decision="APPLY"), draft, AttachmentDecision(), config
+    )
+    assert not any("generic" in item and "natural" in item for item in result.errors)
+
+
+def test_repeated_personality_trait_listing_is_blocked(config: dict) -> None:
+    draft = valid_draft()
+    draft.body += (
+        " Ich bin eher ruhig, verlässlich und ordentlich und passe deshalb gut in eine "
+        "entspannte WG. Insgesamt bin ich im Alltag ziemlich ruhig, zuverlässig und ordentlich."
+    )
+    errors = errors_for(config, valid_facts(), draft)
+    assert any("trait listing" in item or "repeated" in item for item in errors)
+
+
+def test_single_personality_trait_mention_is_fine(config: dict) -> None:
+    draft = valid_draft()
+    draft.body += " Ich bin ziemlich unkompliziert und komme gut mit anderen klar."
+    errors = errors_for(config, valid_facts(), draft)
+    assert not any("trait listing" in item for item in errors)

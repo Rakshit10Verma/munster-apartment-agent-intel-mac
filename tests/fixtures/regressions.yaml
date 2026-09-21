@@ -14,7 +14,7 @@
   text: "Wohnung von privatem Vermieter, 520 € warm, mindestens 24 Monate. Bitte stellen Sie sich vor."
   expected: APPLY
 - id: expensive_room
-  text: "WG-Zimmer 600 € warm, mindestens 12 Monate."
+  text: "WG-Zimmer 650 € warm, mindestens 12 Monate."
   expected: SKIP
 - id: wbs
   text: "Studentenzimmer 420 € warm. WBS erforderlich."
@@ -24,4 +24,4 @@
   expected: SKIP
 - id: short_sublet
   text: "Zwischenmiete für 3 Monate, 450 € warm."
-  expected: SKIP
+  expected: APPLY

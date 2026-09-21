@@ -8,6 +8,14 @@ from pydantic import BaseModel, Field, field_validator
 Platform = Literal["wg_gesucht", "asta_muenster", "na_dann", "kleinanzeigen", "mock", "unknown"]
 Decision = Literal["APPLY", "SKIP", "REVIEW"]
 Risk = Literal["low", "medium", "high"]
+AgeRequirementStrength = Literal["preference", "soft", "strict", "unknown"]
+# Who is asking for a real send. "auto" is the daemon's own autonomous loop -- gated by
+# AUTO_SEND. Every other value is an explicit human approval (a person clicked/typed
+# something asking for THIS specific send) -- gated only by DRY_RUN, never by AUTO_SEND
+# (see Settings.send_permitted). Every contact_listing()/approve_listing() call must
+# name one explicitly; there is no default, so a caller can never send without stating
+# who authorized it.
+SendTrigger = Literal["auto", "manual_cli", "telegram", "dashboard"]
 
 
 def utc_now() -> datetime:
@@ -69,10 +77,13 @@ class ListingFacts(BaseModel):
         "other",
         "unknown",
     ] = "unknown"
+    location: str | None = None
+    furnishing: Literal["furnished", "partly_furnished", "unfurnished", "unknown"] = "unknown"
     warm_rent_eur: float | None = None
     cold_rent_eur: float | None = None
     deposit_eur: float | None = None
     furniture_takeover_eur: float | None = None
+    one_time_fee_eur: float | None = None
     room_size_m2: float | None = None
     flat_size_m2: float | None = None
     total_rooms: float | None = None
@@ -83,6 +94,10 @@ class ListingFacts(BaseModel):
     anmeldung: Literal["yes", "no", "unknown"] = "unknown"
     wbs_required: bool = False
     women_only: bool = False
+    age_min: int | None = None
+    age_max: int | None = None
+    age_requirement_strength: AgeRequirementStrength = "unknown"
+    age_mismatch: bool = False
     explicit_min_age: int | None = None
     age_preference_only: bool = False
     religion_or_confession_required: bool = False
@@ -90,11 +105,19 @@ class ListingFacts(BaseModel):
     income_requirement: bool = False
     schufa_required: bool = False
     buergschaft_required: bool = False
+    parental_guarantor_required: bool = False
+    income_or_guarantor_accepted: bool = False
+    photo_required_with_first_message: bool = False
     indexmiete: bool = False
     hauptmieter_liability: bool = False
     contact_method: Literal["platform", "email", "website", "unknown"] = "unknown"
     contact_email: str | None = None
     documents_explicitly_requested: list[str] = Field(default_factory=list)
+    # Documents/proofs the listing text deterministically identifies as required only
+    # later (e.g. "zum Mietvertrag ..."), not before/at the first WG-Gesucht message.
+    # Informational only: never blocks initial contact, never claims these are
+    # already available.
+    later_contract_requirements: list[str] = Field(default_factory=list)
     scam_risk: Risk = "low"
     scam_reasons: list[str] = Field(default_factory=list)
     hidden_questions: list[HiddenQuestion] = Field(default_factory=list)
@@ -158,6 +181,8 @@ class AttachmentDecision(BaseModel):
     allowed: bool = False
     should_attach: bool = False
     path: str | None = None
+    source: Literal["none", "local_file", "wg_account"] = "none"
+    requires_browser_verification: bool = False
     reasons: list[str] = Field(default_factory=list)
 
 
@@ -165,6 +190,26 @@ class ValidationResult(BaseModel):
     auto_send_allowed: bool = False
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class HiddenAnswerTrace(BaseModel):
+    question_id: str
+    category: str
+    answer_source: str
+    answer: str
+
+
+class GenerationTrace(BaseModel):
+    ai_attempted: bool = False
+    ai_failure_reason: str | None = None
+    # Set only when no cloud provider was even called (e.g. the --fallback-only
+    # diagnostic reprocess mode), as distinct from ai_attempted=True + a failure.
+    ai_skip_reason: str | None = None
+    fallback_used: bool = False
+    fallback_template: str | None = None
+    fallback_scenario: str | None = None
+    optional_clauses: list[str] = Field(default_factory=list)
+    hidden_question_answers: list[HiddenAnswerTrace] = Field(default_factory=list)
 
 
 class AnalysisOutcome(BaseModel):
@@ -179,17 +224,72 @@ class AnalysisOutcome(BaseModel):
         "dry_run_ready",
         "sent",
         "send_failed",
+        "already_contacted",
+        "premium_boost_failed",
+        "bewerbermappe_attachment_failed",
     ]
     message: MessageDraft | None = None
     provider: ProviderMetadata | None = None
     attachment: AttachmentDecision = Field(default_factory=AttachmentDecision)
     validation: ValidationResult = Field(default_factory=ValidationResult)
     router_notes: list[str] = Field(default_factory=list)
+    generation_trace: GenerationTrace = Field(default_factory=GenerationTrace)
+    message_source: Literal[
+        "none", "cloud_ai", "universal_fallback", "universal_answer_bank_fallback"
+    ] = "none"
     database_id: int | None = None
 
 
 class ContactResult(BaseModel):
-    status: Literal["dry_run_ready", "sent", "send_failed", "review_required"]
+    status: Literal[
+        "dry_run_ready",
+        "sent",
+        "send_failed",
+        "send_state_unknown",
+        "not_sent",
+        "review_required",
+        "already_contacted",
+        "premium_boost_failed",
+        "bewerbermappe_attachment_failed",
+    ]
     external_message_id: str | None = None
     screenshot_path: str | None = None
+    detail: str = ""
+
+
+class PremiumBoostResult(BaseModel):
+    state: Literal[
+        "premium_entry_found",
+        "premium_priority_available",
+        "premium_priority_activated",
+        "premium_priority_verified",
+        "not_available",
+        "requires_user_action",
+        "failed",
+    ]
+    verified: bool = False
+    detail: str = ""
+
+
+class WGBewerbermappeResult(BaseModel):
+    state: Literal[
+        "attached",
+        "already_attached",
+        "not_available",
+        "requires_user_action",
+        "failed",
+    ]
+    verified: bool = False
+    detail: str = ""
+
+
+class WGListingInspection(BaseModel):
+    state: Literal[
+        "new",
+        "already_contacted",
+        "unavailable",
+        "requires_user_action",
+        "unknown",
+    ]
+    listing_id: str = ""
     detail: str = ""

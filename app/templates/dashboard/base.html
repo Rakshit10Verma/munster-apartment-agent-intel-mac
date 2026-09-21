@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Apartment Agent Review{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  </head>
+  <body>
+    <header>
+      <a href="{{ url_for('index') }}"><strong>Münster Apartment Agent</strong></a>
+      <span class="mode {{ 'safe' if settings.dry_run else 'live' }}">
+        {% if settings.dry_run %}
+          DRY RUN / SENDING DISABLED
+        {% elif settings.auto_send %}
+          LIVE: AUTO-SEND + APPROVAL SENDING ENABLED
+        {% else %}
+          LIVE: APPROVAL SENDING ENABLED (no autonomous send)
+        {% endif %}
+      </span>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+  </body>
+</html>

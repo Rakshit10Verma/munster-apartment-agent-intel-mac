@@ -36,7 +36,8 @@ def test_end_to_end_mock_source_ai_validator_sender_db(settings, config, monkeyp
     expected.data.facts.contact_email = "owner@example.test"
     contacted = []
 
-    def sender(outcome, _settings, database):
+    def sender(outcome, _settings, database, trigger):
+        assert trigger == "auto"
         contacted.append(outcome.database_id)
         database.record_contact(
             outcome.database_id,
@@ -44,6 +45,7 @@ def test_end_to_end_mock_source_ai_validator_sender_db(settings, config, monkeyp
             "platform",
             "dry_run_ready",
             detail="mocked sender",
+            trigger=trigger,
         )
         return ContactResult(status="dry_run_ready", detail="mocked sender")
 

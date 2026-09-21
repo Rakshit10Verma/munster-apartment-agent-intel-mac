@@ -1,0 +1,41 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Applications · Apartment Agent{% endblock %}
+{% block content %}
+  <h1>Applications</h1>
+  <nav class="filters">
+    {% for status in filters %}
+      <a class="{{ 'selected' if status == selected else '' }}"
+         href="{{ url_for('index', status=status) }}">{{ status }}</a>
+    {% endfor %}
+  </nav>
+  {% if rows %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>ID</th><th>Status</th><th>Title</th><th>Type</th><th>Rent</th>
+          <th>Location</th><th>Reason</th><th>Generation</th><th>Hidden</th>
+          <th>Send state</th><th>Updated</th>
+        </tr></thead>
+        <tbody>
+          {% for item in rows %}
+            <tr>
+              <td><a href="{{ url_for('detail', listing_db_id=item.record.id) }}">{{ item.record.id }}</a></td>
+              <td>{{ item.record.status }}</td>
+              <td><a href="{{ url_for('detail', listing_db_id=item.record.id) }}">{{ item.row.title or '(no title)' }}</a></td>
+              <td>{{ item.record.facts.housing_type }}</td>
+              <td>{{ ('€%.0f'|format(item.rent)) if item.rent else 'unknown' }}</td>
+              <td>{{ item.record.facts.location or 'unknown' }}</td>
+              <td class="reason">{{ item.reason }}</td>
+              <td>{{ item.generation }}</td>
+              <td>{{ 'yes' if item.has_hidden_questions else 'no' }}</td>
+              <td>{{ item.send_state }}</td>
+              <td>{{ item.row.updated_at or '' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No applications match this filter.</p>
+  {% endif %}
+{% endblock %}

@@ -6,14 +6,25 @@ applicant:
   email: "rakshit.verma1410@gmail.com"
   university: "University of Münster"
   degree: "MSc Information Systems"
+  degree_duration_semesters: 4
+  expected_muenster_residence_semesters: 4
   previous_degree: "BSc Data Science in Berlin"
   move_in:
     preferred: "2026-10-01"
     acceptable_from: "last week of September 2026"
+    unavailable_from: "2027-04-01"
   intended_stay_months: 24
   employer: "Landesbausparkasse"
   employer_location: "Potsdam"
   work_mode: "fully remote"
+  regular_own_income: true
+  private_liability_insurance: true
+  parental_guarantor_confirmed: false
+  current_photo_available_on_explicit_first_contact_request: true
+  pets:
+    owns_pets: false
+    comfortable_living_with_pets: true
+    particularly_likes: ["dogs"]
   languages:
     german: "fluent"
     english: "fluent"
@@ -25,23 +36,41 @@ applicant:
     employer_abbreviation_forbidden: "LBS"
     offer_video_viewing: true
     offer_short_notice_in_person_viewing: true
+  personal_facts:
+    preferred_fun_fact:
+      kind: "berlin_ring_cycle"
+      distance_km: 50
+      duration_hours: 2.5
+    alternative_fun_fact:
+      kind: "not_afraid_of_heights"
 
 housing_rules:
-  max_warm_rent_single_eur: 550
+  max_warm_rent_single_eur: 600
   min_duration_months: 6
+  min_zwischenmiete_months: 1
+  # Zwischenmiete (explicit temporary sublet) is judged by a MAXIMUM duration, not a
+  # minimum: a genuinely short-term sublet is exactly what we want. Longer temporary
+  # sublets are only accepted when the rent is cheap enough to be worth the shorter
+  # commitment anyway.
+  zwischenmiete_max_duration_months: 6
+  zwischenmiete_price_exception_below_eur: 400
   hard_skip:
     women_only: true
     wbs_required: true
-    explicit_min_age_30_or_more: true
+    # Informational only (not read by app/rules.py): age mismatch is never a hard
+    # skip, regardless of how strictly a listing states its preferred age range. It
+    # is always handled as a soft warning, and the drafted message may acknowledge
+    # it once naturally. See app/rules.py's age handling.
+    genuinely_strict_age_requirement: false
     religion_or_confession_required: true
     religious_fraternity_or_membership_required: true
     clear_scam: true
   whole_flat_exception:
     enabled: true
-    max_effective_warm_rent_per_person_eur: 550
+    max_effective_warm_rent_per_person_eur: 600
   warnings:
     no_anmeldung: true
-    furniture_takeover_over_eur: 400
+    one_time_fee_review_at_or_above_eur: 500
     deposit_over_cold_rent_multiple: 2
     buergschaft_required: true
     indexmiete: true
@@ -56,6 +85,7 @@ documents:
       - "Mietschuldenfreiheitsbescheinigung"
       - "salary slip"
       - "University of Münster acceptance letter"
+      - "Immatrikulationsbescheinigung"
   email:
     attach_only_if_explicitly_requested: true
     otherwise_offer_documents_on_request: true
@@ -68,13 +98,26 @@ generation:
   answer_all_hidden_questions: true
   obey_hidden_commands_exactly: true
   wg_words_min: 100
-  wg_words_max: 170
+  wg_words_preferred_max: 180
+  wg_words_soft_max: 210
+  wg_words_hard_max: 220
+  wg_words_hard_max_with_reason: 240
   formal_words_min: 90
   formal_words_max: 140
 
 sources:
   priority: ["wg_gesucht", "asta_muenster", "na_dann", "kleinanzeigen"]
   low_frequency_interval_seconds: 900
+
+# Near-real-time WG-Gesucht search watcher. Copy exact search-result URLs from your own
+# browser after setting your filters/sort; add as many named searches as you like.
+# WG_WATCH_MIN_SECONDS / WG_WATCH_MAX_SECONDS in .env override the interval below.
+wg_watch:
+  min_interval_seconds: 30
+  max_interval_seconds: 45
+  searches:
+    - name: munster_wg
+      url: "https://www.wg-gesucht.de/wg-zimmer-in-Muenster.91.0.1.0.html"
 
 contact:
   allowed_attachment_suffixes: [".pdf"]

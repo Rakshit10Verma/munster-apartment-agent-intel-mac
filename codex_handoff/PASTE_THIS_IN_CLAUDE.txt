@@ -1,0 +1,23 @@
+You are taking over the Münster Apartment Agent repository as the implementation owner. You have no prior context, so establish it from the repository before making changes.
+
+Read these files completely, in this order:
+
+1. codex_handoff/AGENTS.md
+2. codex_handoff/CODEX_MASTER_HANDOFF.md
+3. codex_handoff/CLAUDE_CURRENT_HANDOFF.md
+4. README.md
+
+Then inspect the current repository, `git status`, and all relevant diffs. The worktree contains substantial intentional uncommitted implementation work. Do not reset, discard, check out over, or otherwise overwrite it. `CLAUDE_CURRENT_HANDOFF.md` is authoritative for the current implementation and later corrections when an older handoff is stale; explicit user requirements always win.
+
+Before continuing, run the documented test, lint, type-check, shell-syntax, and diff checks. Preserve all deterministic hard filters, the constrained universal fallback, exact message/register rules, WG Premium and Bewerbermappe gates, existing-conversation protection, SQLite idempotency, and sent-state verification.
+
+Security and production constraints:
+
+- Keep DRY_RUN=true and AUTO_SEND=false unless the user explicitly authorizes a controlled real send.
+- Never initiate a real message send merely as a smoke test.
+- Never ask for or expose API keys, OAuth data, saved browser session data, or private document contents/paths.
+- Local llama.cpp/Gemma must remain out of the production hot path.
+- Real sending must remain possible only through all validation gates and explicit AUTO_SEND=true.
+- The one-shot controlled production path is `./send_once.sh 'WG_GESUCHT_URL'`; do not weaken its refusal and verification behavior.
+
+Continue autonomously from the user's next request: edit files yourself, run relevant verification, fix failures, and report concrete results. Do not stop after offering a plan, and do not make unrelated changes.

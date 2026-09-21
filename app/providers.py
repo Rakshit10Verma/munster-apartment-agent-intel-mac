@@ -75,7 +75,7 @@ def call_anthropic(system: str, prompt: str, settings: Settings) -> ProviderCall
 
         client = Anthropic(
             api_key=key,
-            timeout=float(settings.ai_timeout_seconds),
+            timeout=float(settings.provider_timeout_seconds("anthropic")),
             max_retries=0,
         )
         response = client.messages.create(
@@ -120,7 +120,7 @@ def call_openai(system: str, prompt: str, settings: Settings) -> ProviderCall:
 
         client = OpenAI(
             api_key=key,
-            timeout=float(settings.ai_timeout_seconds),
+            timeout=float(settings.provider_timeout_seconds("openai")),
             max_retries=0,
         )
         response = client.responses.create(
@@ -159,7 +159,10 @@ def call_gemini(system: str, prompt: str, settings: Settings) -> ProviderCall:
         from google.genai import types
 
         client = genai.Client(
-            api_key=key, http_options=types.HttpOptions(timeout=settings.ai_timeout_seconds * 1000)
+            api_key=key,
+            http_options=types.HttpOptions(
+                timeout=settings.provider_timeout_seconds("gemini") * 1000
+            ),
         )
         response = client.models.generate_content(
             model=model,
@@ -222,6 +225,7 @@ def route_cloud(
             notes.append(f"{name}: provider implementation unavailable")
             continue
         attempts = settings.ai_max_retries + 1
+        provider_timeout = settings.provider_timeout_seconds(name)
         for attempt in range(attempts):
             started = time.monotonic()
             try:
@@ -230,7 +234,7 @@ def route_cloud(
                 return result, notes
             except ProviderError as exc:
                 notes.append(str(exc))
-                consumed_timeout = time.monotonic() - started >= settings.ai_timeout_seconds * 0.8
+                consumed_timeout = time.monotonic() - started >= provider_timeout * 0.8
                 if not _is_transient(exc) or attempt + 1 >= attempts or consumed_timeout:
                     if use_circuit_breaker and _is_transient(exc):
                         _PROVIDER_COOLDOWN_UNTIL[name] = (

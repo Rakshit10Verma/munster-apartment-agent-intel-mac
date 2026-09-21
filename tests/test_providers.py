@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 
+from app.config_loader import load_settings
 from app.providers import (
     ProviderError,
     ProviderSchemaError,
@@ -69,3 +70,30 @@ def test_all_providers_unavailable(settings) -> None:
             settings,
             {name: unavailable for name in settings.provider_order},
         )
+
+
+def test_provider_timeout_overrides_are_configurable_and_openai_has_safe_floor(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("AI_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("ANTHROPIC_TIMEOUT_SECONDS", "31")
+    monkeypatch.setenv("OPENAI_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("GEMINI_TIMEOUT_SECONDS", "32")
+    settings = load_settings()
+    assert settings.provider_timeout_seconds("anthropic") == 31
+    assert settings.provider_timeout_seconds("openai") == 30
+    assert settings.provider_timeout_seconds("gemini") == 32
+
+
+@pytest.mark.parametrize(("raw", "expected"), [("true", True), ("false", False)])
+def test_wg_premium_strict_respects_explicit_env_value(
+    monkeypatch, raw: str, expected: bool
+) -> None:
+    monkeypatch.setenv("WG_PREMIUM_STRICT", raw)
+    assert load_settings().wg_premium_strict is expected
+
+
+def test_wg_premium_strict_defaults_to_false_when_unset(monkeypatch) -> None:
+    monkeypatch.delenv("WG_PREMIUM_STRICT", raising=False)
+    monkeypatch.setattr("app.config_loader.load_dotenv", lambda *_args, **_kwargs: None)
+    assert load_settings().wg_premium_strict is False

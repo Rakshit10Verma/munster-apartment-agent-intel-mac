@@ -1,0 +1,31 @@
+:root { color-scheme: light; font: 15px/1.45 system-ui, sans-serif; color: #1d252c; background: #f5f6f7; }
+body { margin: 0; }
+header { display: flex; gap: 1rem; justify-content: space-between; padding: 1rem 1.5rem; background: #fff; border-bottom: 1px solid #d9dde1; }
+header a { color: inherit; text-decoration: none; }
+main { max-width: 1500px; margin: 0 auto; padding: 1.5rem; }
+.mode { padding: .2rem .55rem; border-radius: .3rem; font-weight: 700; }
+.mode.safe { background: #dff3e5; color: #176533; }
+.mode.live { background: #ffe0df; color: #9d1c18; }
+.filters { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.filters a, .button, button { border: 1px solid #b8c0c8; border-radius: .35rem; background: #fff; color: #1d252c; padding: .45rem .7rem; text-decoration: none; cursor: pointer; }
+.filters a.selected, .primary { color: #fff; background: #1769aa; border-color: #1769aa; }
+.danger { color: #fff; background: #a8231e; border-color: #a8231e; }
+.table-wrap { overflow-x: auto; background: #fff; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; vertical-align: top; border: 1px solid #d9dde1; padding: .55rem; }
+th { background: #eef1f3; }
+.reason { min-width: 18rem; }
+section { margin: 1rem 0; padding: 1rem; background: #fff; border: 1px solid #d9dde1; border-radius: .35rem; }
+h1, h2, h3 { line-height: 1.2; }
+h2 { margin-top: 0; }
+dl { display: grid; grid-template-columns: minmax(10rem, 15rem) 1fr; gap: .35rem .8rem; }
+dt { font-weight: 700; }
+dd { margin: 0; overflow-wrap: anywhere; }
+pre { overflow: auto; white-space: pre-wrap; word-break: break-word; background: #f6f7f8; padding: .8rem; }
+.message { font-family: system-ui, sans-serif; }
+.title-row, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.title-row h1, .actions h2 { margin-right: auto; }
+.actions form { margin: 0; }
+.warning { padding: .75rem; background: #fff2cc; }
+.error { padding: .75rem; background: #ffe0df; color: #831b17; }
+@media (max-width: 700px) { main { padding: .75rem; } dl { grid-template-columns: 1fr; } }

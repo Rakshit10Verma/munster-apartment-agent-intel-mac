@@ -1,0 +1,12 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Confirm reject · Listing {{ record.id }}{% endblock %}
+{% block content %}
+  <h1>Reject listing {{ record.id }}?</h1>
+  <p>{{ row.title or '(no title)' }}</p>
+  <p>This prevents the listing from being reprocessed.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label><input type="checkbox" name="confirm" value="yes" required> Confirm rejection.</label>
+    <p><button class="danger" type="submit">Reject</button> <a class="button" href="{{ url_for('detail', listing_db_id=record.id) }}">Cancel</a></p>
+  </form>
+{% endblock %}

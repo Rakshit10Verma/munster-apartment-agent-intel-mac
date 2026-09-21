@@ -7,16 +7,17 @@ from app.schemas import ListingFacts
 from tests.conftest import viable_listing
 
 
-def test_wg_low_risk_pdf_is_allowed(settings, config, tmp_path) -> None:
-    document = tmp_path / "Bewerbermappe.pdf"
-    document.write_bytes(b"%PDF-test")
+def test_wg_low_risk_uses_account_bewerbermappe_without_local_path(settings, config) -> None:
     result = decide_attachment(
         viable_listing(),
         ListingFacts(scam_risk="low"),
-        replace(settings, bewerbermappe_path=document),
+        settings,
         config,
     )
     assert result.allowed and result.should_attach
+    assert result.source == "wg_account"
+    assert result.path is None
+    assert result.requires_browser_verification
 
 
 def test_medium_risk_blocks_sensitive_document(settings, config, tmp_path) -> None:
@@ -47,8 +48,12 @@ def test_non_pdf_is_blocked(settings, config, tmp_path) -> None:
     document = tmp_path / "Bewerbermappe.zip"
     document.write_bytes(b"private")
     result = decide_attachment(
-        viable_listing(),
-        ListingFacts(scam_risk="low"),
+        viable_listing(platform="asta_muenster"),
+        ListingFacts(
+            scam_risk="low",
+            contact_method="email",
+            documents_explicitly_requested=["Bewerbermappe"],
+        ),
         replace(settings, bewerbermappe_path=document),
         config,
     )

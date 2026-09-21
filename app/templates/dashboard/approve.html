@@ -1,0 +1,13 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Confirm send · Listing {{ record.id }}{% endblock %}
+{% block content %}
+  <h1>Confirm Approve &amp; Send for listing {{ record.id }}</h1>
+  <p class="warning">This action uses the normal production contact pipeline. Current mode: <strong>{{ 'LIVE SEND' if not settings.dry_run else 'DRY RUN' }}</strong>.</p>
+  {% if gates.approval_blockers %}<p class="error">Blocked: {{ gates.approval_blockers|join('; ') }}</p>{% endif %}
+  {% if record.message %}<p><strong>Subject:</strong> {{ record.message.subject or '(none)' }}</p><pre class="message">{{ record.message.body }}</pre>{% else %}<p class="error">No message exists.</p>{% endif %}
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label><input type="checkbox" name="confirm" value="yes" required> I have reviewed this exact message and explicitly approve this action.</label>
+    <p><button class="primary" type="submit">Run normal send pipeline</button> <a class="button" href="{{ url_for('detail', listing_db_id=record.id) }}">Cancel</a></p>
+  </form>
+{% endblock %}

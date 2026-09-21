@@ -37,7 +37,8 @@ def _provider_checks(settings: Settings) -> list[Check]:
             Check(
                 f"AI {name}",
                 "OK" if configured and model else "MISSING",
-                f"key {'present' if configured else 'blank'}; model {model or 'blank'}",
+                f"key {'present' if configured else 'blank'}; model {model or 'blank'}; "
+                f"timeout {settings.provider_timeout_seconds(name)}s",
             )
         )
     return checks
@@ -69,12 +70,16 @@ def _browser_check(settings: Settings) -> Check:
 def _document_check(settings: Settings) -> Check:
     path = settings.bewerbermappe_path
     if path is None:
-        return Check("Bewerbermappe", "MISSING", "set absolute BEWERBERMAPPE_PATH in .env")
+        return Check(
+            "Local Bewerbermappe",
+            "OPTIONAL",
+            "WG uses Meine Bewerbermappe from the account; set a path only for email",
+        )
     if not path.is_absolute():
-        return Check("Bewerbermappe", "ERROR", "path is not absolute")
+        return Check("Local Bewerbermappe", "ERROR", "path is not absolute")
     if not path.is_file():
-        return Check("Bewerbermappe", "MISSING", f"file not found: {path}")
-    return Check("Bewerbermappe", "OK", f"{path.name} ({path.stat().st_size} bytes)")
+        return Check("Local Bewerbermappe", "MISSING", f"file not found: {path}")
+    return Check("Local Bewerbermappe", "OK", f"{path.name} ({path.stat().st_size} bytes)")
 
 
 def _database_check(settings: Settings) -> Check:
@@ -122,13 +127,19 @@ def run_doctor(ai_smoke: bool = True) -> tuple[list[Check], bool]:
         Check(
             "Safety mode",
             "OK" if settings.dry_run and not settings.auto_send else "WARN",
-            f"DRY_RUN={settings.dry_run}, AUTO_SEND={settings.auto_send}, "
-            f"effective sending={settings.sending_enabled}",
+            f"DRY_RUN={settings.dry_run}, AUTO_SEND={settings.auto_send} "
+            f"(autonomous daemon send={settings.send_permitted('auto')}, "
+            f"explicit approval send={settings.send_permitted('manual_cli')})",
         ),
         Check(
             "Production AI path",
             "OK",
             "cloud only; inherited LOCAL_FIRST/llama.cpp settings are ignored",
+        ),
+        Check(
+            "WG premium gate",
+            "OK" if settings.wg_use_premium_boost and settings.wg_premium_strict else "WARN",
+            f"enabled={settings.wg_use_premium_boost}, strict={settings.wg_premium_strict}",
         ),
         *_provider_checks(settings),
         _document_check(settings),
@@ -171,7 +182,13 @@ def doctor(ai_smoke: bool = True, console: Console | None = None) -> bool:
     table.add_column("Check")
     table.add_column("Status")
     table.add_column("Details")
-    colors = {"OK": "green", "WARN": "yellow", "ERROR": "red", "MISSING": "yellow"}
+    colors = {
+        "OK": "green",
+        "WARN": "yellow",
+        "ERROR": "red",
+        "MISSING": "yellow",
+        "OPTIONAL": "cyan",
+    }
     for check in checks:
         color = colors.get(check.status, "dim")
         table.add_row(check.name, f"[{color}]{check.status}[/{color}]", check.detail)

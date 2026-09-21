@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .env
 data/
+backups/
 logs/
 browser-profile/
 credentials.json
@@ -16,4 +17,5 @@ vendor/
 .mypy_cache/
 playwright-report/
 test-results/
+audit_exports/
 *.eml

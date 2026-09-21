@@ -4,6 +4,13 @@ import re
 import unicodedata
 from typing import Any
 
+from .answer_bank_resolver import match_known_question
+from .message_policy import (
+    GERMAN_WG_VIEWING_CLOSING,
+    count_age_mismatch_mentions,
+    has_age_mismatch_acknowledgement,
+    is_formal_application_context,
+)
 from .schemas import (
     AttachmentDecision,
     HiddenCommand,
@@ -68,49 +75,27 @@ def _command_error(command: HiddenCommand, draft: MessageDraft) -> str | None:
 def _known_answer_present(question: str, body: str) -> bool | None:
     question = _plain(question)
     body = _plain(body)
-    if re.search(r"kartenspiel|card game|doppelkopf", question):
-        if "doppelkopf" in question:
-            return "doppelkopf" in body and bool(re.search(r"(?:kein|nicht|don.t|do not)", body))
-        return "skyjo" in body or "flip 7" in body
-    if re.search(r"lieblingsessen|favorite food|was isst|gericht", question):
-        return any(word in body for word in ("hähnchenpasta", "italien", "korean", "indisch"))
-    if re.search(r"lieblingsgetränk|favorite drink", question):
-        return "kokoswasser" in body or "coconut water" in body
-    if re.search(r"song|musik|music", question):
-        return any(word in body for word in ("bollywood", "kanye west", "eminem"))
-    if re.search(r"fiktive|fictional character|filmfigur", question):
-        return bool(re.search(r"keine.{0,25}(figur|film)|ich selbst|being myself", body))
-    if re.search(r"sport|bouldern|cycling|fahrrad", question):
-        return any(
-            word in body for word in ("bould", "fahrrad", "radfahren", "cycling", "fitness", "gym")
-        )
     if re.search(r"über dich|about yourself|alltag|daily life", question):
         return "information systems" in body and "werkstudent" in body
-    if re.search(r"wochenende|weekend", question):
-        return any(word in body for word in ("entspann", "hobb", "projekt", "relax"))
-    if re.search(r"wg.aktivität|zusammen machen|together in the flat", question):
-        return any(word in body for word in ("karten", "essen", "cards", "eating"))
-    if re.search(r"lern|studier|study routine", question):
-        return "bibliothek" in body or "library" in body
-    if re.search(r"homeoffice|home office", question):
-        return bool(re.search(r"7.{0,3}8\s*stunden|7.{0,3}8\s*hours", body))
-    if re.search(r"putz|clean", question):
-        return "putzplan" in body or "cleaning plan" in body
-    if re.search(r"freund.{0,12}besuch|friends visit", question):
-        return bool(re.search(r"1.{0,3}2.{0,12}(?:woche|week)", body))
-    if re.search(r"alkohol|alcohol", question):
-        return any(word in body for word in ("gelegentlich", "occasionally", "nicht regelmäßig"))
-    if re.search(r"morgenmensch|morning or night|nachtmensch", question):
-        return "morgenmensch" in body or "morning person" in body
-    if re.search(r"partner|overnight|übernacht", question):
-        return any(word in body for word in ("berlin", "selten", "rarely", "keine übernacht"))
-    if re.search(r"nachhalt|sustainab", question):
-        return any(word in body for word in ("müll", "wasser", "waste", "water"))
-    if re.search(r"jahreszeit|season", question):
-        return "sommer" in body or "summer" in body
-    if re.search(r"politik|politic|identität|identity", question):
-        return any(word in body for word in ("lieber nicht", "prefer not", "möchte ich nicht"))
-    return None
+    match = match_known_question(question)
+    if match is None:
+        return None
+    return match.verify(body)
+
+
+_TRAIT_WORD = (
+    r"(?:ruhig\w*|entspannt\w*|gelassen\w*|verlässlich\w*|zuverlässig\w*|"
+    r"ordentlich\w*|reif\w*|unkompliziert\w*)"
+)
+_TRAIT_LISTING_PATTERN = re.compile(
+    rf"\b{_TRAIT_WORD}\b(?:[,\s]+(?:und\s+)?\b{_TRAIT_WORD}\b){{1,}}", re.I
+)
+_GENERIC_APPLICATION_PHRASE_PATTERN = re.compile(
+    r"\bich bringe die nötige reife\b"
+    r"|\bich erfülle (?:alle )?(?:die )?anforderungen\b"
+    r"|\bich bin überzeugt\b.{0,40}\bpass(?:e|en)\b",
+    re.I,
+)
 
 
 def _hook_present(hook: str, body: str) -> bool:
@@ -141,6 +126,7 @@ def validate_message(
     attachment: AttachmentDecision,
     config: dict[str, Any],
     provider_succeeded: bool = True,
+    message_source: str = "cloud_ai",
 ) -> ValidationResult:
     errors: list[str] = []
     warnings: list[str] = []
@@ -158,14 +144,19 @@ def validate_message(
         warnings.append("non-critical listing ambiguities recorded")
     if facts.unresolved_required_facts:
         errors.append("unresolved required listing facts")
+    if facts.parental_guarantor_required and not config.get("applicant", {}).get(
+        "parental_guarantor_confirmed", False
+    ):
+        errors.append("unresolved Elternbürgschaft requirement")
     if draft is None:
         errors.append("message missing")
         return ValidationResult(auto_send_allowed=False, errors=errors, warnings=warnings)
 
     required_questions = {item.id for item in facts.hidden_questions if item.required}
+    known_questions = {item.id for item in facts.hidden_questions}
     answered = set(draft.answered_question_ids)
     missing_questions = required_questions - answered
-    extra_answers = answered - required_questions
+    extra_answers = answered - known_questions
     if missing_questions:
         errors.append(f"unanswered hidden questions: {sorted(missing_questions)}")
     if extra_answers:
@@ -197,6 +188,7 @@ def validate_message(
         errors.append("message has unresolved required personal facts")
     body = draft.body.strip()
     plain = _plain(body)
+    formal = is_formal_application_context(listing, facts)
     if not body:
         errors.append("message body is empty")
     if facts.contact_method == "email" and not draft.subject.strip():
@@ -207,6 +199,12 @@ def validate_message(
         errors.append("remote-work status contradicted: work is fully remote")
     if re.search(r"\blbs\b", plain):
         errors.append("forbidden LBS abbreviation")
+    if not config.get("applicant", {}).get("parental_guarantor_confirmed", False) and re.search(
+        r"\b(?:elternbürgschaft|bürgschaft|buergschaft|guarant(?:ee|or))\b", plain
+    ):
+        errors.append("unconfirmed guarantor mentioned in outgoing message")
+    if listing.platform == "wg_gesucht" and "bewerbermappe" in plain:
+        errors.append("WG message must not mention the separately attached Bewerbermappe")
     origin_pattern = (
         r"\b(?:ich (?:komme|stamme) aus indien|ich bin (?:ein )?inder|i am indian|from india)\b"
         r"|\b(?:herkunft|nationalit(?:ät|y)|origin).{0,35}(?:indien|india|indian)\b"
@@ -215,6 +213,11 @@ def validate_message(
         errors.append("nationality/origin mentioned")
     if re.search(r"welches kartenspiel du am liebsten spielst.{0,12}ist", plain):
         errors.append("known unnatural card-game sentence")
+    if re.search(
+        r"lieblingsessen.{0,100}(?:zum einzug).{0,60}(?:selbst|auch).{0,25}koch",
+        plain,
+    ):
+        errors.append("favorite-food answer adds an unnecessary self-cooking offer")
     if re.search(
         r"(?:damit (?:ihr|sie) (?:wisst|wissen).{0,55}(?:anzeige|inserat).{0,25}gelesen"
         r"|so (?:you|they) know i (?:have )?read.{0,25}(?:listing|ad))",
@@ -241,18 +244,65 @@ def validate_message(
         errors.append("generic cover-letter opening")
     if re.search(r"(?m)^\s*(?:[-*•]|\d+[.)])\s+", body):
         errors.append("bullet points are not allowed in outgoing message")
+    if not formal and _GENERIC_APPLICATION_PHRASE_PATTERN.search(plain):
+        errors.append("generic/cover-letter-style phrasing detected; use natural spoken wording")
+    trait_listings = _TRAIT_LISTING_PATTERN.findall(plain)
+    if len(trait_listings) > 1:
+        errors.append(
+            "personality-trait listing (e.g. 'ruhig, verlässlich und ordentlich') is repeated "
+            "more than once; keep it to a single natural mention"
+        )
 
     word_count = len(_words(body))
     if word_count < 60:
         errors.append(f"message too short ({word_count} words)")
-    if word_count > 220:
+    if word_count > 300:
         errors.append(f"message absurdly long ({word_count} words)")
     generation = config["generation"]
-    formal = facts.advertiser_type in {"private_landlord", "company"}
-    minimum = generation["formal_words_min"] if formal else generation["wg_words_min"]
-    maximum = generation["formal_words_max"] if formal else generation["wg_words_max"]
-    if not minimum <= word_count <= maximum:
-        errors.append(f"message length {word_count} outside required {minimum}-{maximum}")
+    if formal:
+        # A reasonable word-count target is a soft style guideline, not a hard gate:
+        # naturalness matters more than hitting an exact range, so only note it as a
+        # warning here. The unconditional too-short/absurdly-long checks above already
+        # catch messages that are genuinely broken.
+        minimum = int(generation["formal_words_min"])
+        maximum = int(generation["formal_words_max"])
+        if not minimum <= word_count <= maximum:
+            warnings.append(
+                f"formal message length {word_count} outside preferred {minimum}-{maximum}"
+            )
+    elif message_source in {"universal_fallback", "universal_answer_bank_fallback"}:
+        if word_count > 300:
+            errors.append(f"universal WG message excessively long ({word_count}>300)")
+    else:
+        # Naturalness matters more than a rigid word count: a longer message is fine
+        # when it is genuinely earning its length (a real hook, a hidden-question
+        # answer, an age/fit clarification), rather than being padded or repetitive.
+        wg_min = int(generation["wg_words_min"])
+        preferred_max = int(generation["wg_words_preferred_max"])
+        soft_max = int(generation["wg_words_soft_max"])
+        hard_max = int(generation["wg_words_hard_max"])
+        hard_max_with_reason = int(generation["wg_words_hard_max_with_reason"])
+        has_good_reason = bool(
+            facts.age_mismatch or any(item.required for item in facts.hidden_questions)
+        )
+        effective_max = hard_max_with_reason if has_good_reason else hard_max
+        has_quality_content = bool(draft.hooks_used) and (
+            bool(draft.answered_question_ids) or has_good_reason
+        )
+        if word_count < wg_min:
+            errors.append(f"WG message too short ({word_count}<{wg_min})")
+        elif word_count > effective_max:
+            errors.append(
+                f"WG message excessively long ({word_count}>{effective_max}); trim redundant "
+                "or generic content rather than just cutting length"
+            )
+        elif word_count > soft_max:
+            warnings.append(
+                f"WG message long ({word_count}>{soft_max}); consider trimming if not every "
+                "sentence is necessary"
+            )
+        elif word_count > preferred_max and not has_quality_content:
+            warnings.append(f"WG message above preferred length ({word_count}>{preferred_max})")
 
     detected = _detect_language(body)
     if facts.listing_language in {"de", "en"} and detected != facts.listing_language:
@@ -266,11 +316,30 @@ def validate_message(
         errors.append("formal Sie wording in casual WG message")
     if expected_register == "sie" and re.search(r"\b(?:du|dir|dich|euch)\b", body, re.I):
         errors.append("informal wording in formal landlord message")
+    if facts.age_mismatch:
+        age_mentions = count_age_mismatch_mentions(body)
+        if not has_age_mismatch_acknowledgement(body):
+            errors.append("soft age mismatch is not acknowledged with maturity/fit reassurance")
+        elif age_mentions > 1:
+            errors.append(
+                f"age mismatch personalization repeated {age_mentions} times; "
+                "regenerate with a single mention"
+            )
+    required_closing = " ".join(_plain(GERMAN_WG_VIEWING_CLOSING).split())
+    normalized_body = " ".join(plain.split())
+    if (
+        listing.platform == "wg_gesucht"
+        and facts.listing_language == "de"
+        and not formal
+        and not normalized_body.endswith(required_closing)
+    ):
+        errors.append("required German WG viewing/closing block is missing or changed")
 
-    if not draft.hooks_used:
-        errors.append("no listing-specific hook declared")
-    elif not any(_hook_present(hook, body) for hook in draft.hooks_used):
-        errors.append("listing-specific hook not verifiable in body")
+    if message_source not in {"universal_fallback", "universal_answer_bank_fallback"}:
+        if not draft.hooks_used:
+            errors.append("no listing-specific hook declared")
+        elif not any(_hook_present(hook, body) for hook in draft.hooks_used):
+            errors.append("listing-specific hook not verifiable in body")
 
     if attachment.should_attach and not attachment.allowed:
         errors.append("document policy violation")
