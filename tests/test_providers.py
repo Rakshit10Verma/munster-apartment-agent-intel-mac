@@ -79,10 +79,12 @@ def test_provider_timeout_overrides_are_configurable_and_openai_has_safe_floor(
     monkeypatch.setenv("ANTHROPIC_TIMEOUT_SECONDS", "31")
     monkeypatch.setenv("OPENAI_TIMEOUT_SECONDS", "30")
     monkeypatch.setenv("GEMINI_TIMEOUT_SECONDS", "32")
+    monkeypatch.setenv("FREELLM_TIMEOUT_SECONDS", "33")
     settings = load_settings()
     assert settings.provider_timeout_seconds("anthropic") == 31
     assert settings.provider_timeout_seconds("openai") == 30
     assert settings.provider_timeout_seconds("gemini") == 32
+    assert settings.provider_timeout_seconds("freellm") == 33
 
 
 @pytest.mark.parametrize(("raw", "expected"), [("true", True), ("false", False)])
@@ -97,3 +99,13 @@ def test_wg_premium_strict_defaults_to_false_when_unset(monkeypatch) -> None:
     monkeypatch.delenv("WG_PREMIUM_STRICT", raising=False)
     monkeypatch.setattr("app.config_loader.load_dotenv", lambda *_args, **_kwargs: None)
     assert load_settings().wg_premium_strict is False
+
+def test_freellm_is_accepted_in_provider_order(monkeypatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER_ORDER", "freellm,gemini")
+    monkeypatch.setenv("FREELLM_API_KEY", "local-test-key")
+    monkeypatch.setenv("FREELLM_MODEL", "test-route")
+    settings = load_settings()
+    assert settings.provider_order == ("freellm", "gemini")
+    assert settings.freellm_base_url == "http://127.0.0.1:3001/v1"
+    assert settings.freellm_api_key == "local-test-key"
+    assert settings.freellm_model == "test-route"
