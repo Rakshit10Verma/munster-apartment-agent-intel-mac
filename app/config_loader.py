@@ -65,6 +65,10 @@ class Settings:
     telegram_allowed_user_id: int | None
     telegram_chat_id: str
     applicant_photo_path: Path | None = None
+    freellm_base_url: str = ""
+    freellm_api_key: str = ""
+    freellm_model: str = ""
+    freellm_timeout_seconds: int = 30
 
     def send_permitted(self, trigger: SendTrigger) -> bool:
         """Whether `trigger` may perform a REAL send right now.
@@ -89,6 +93,7 @@ class Settings:
             "anthropic": self.anthropic_timeout_seconds,
             "openai": self.openai_timeout_seconds,
             "gemini": self.gemini_timeout_seconds,
+            "freellm": self.freellm_timeout_seconds,
         }.get(provider, self.ai_timeout_seconds)
 
 
@@ -108,7 +113,7 @@ def load_settings() -> Settings:
         or "anthropic,openai,gemini"
     )
     order = tuple(item.strip().lower() for item in raw_order.split(",") if item.strip())
-    unknown = sorted(set(order) - {"anthropic", "openai", "gemini"})
+    unknown = sorted(set(order) - {"anthropic", "openai", "gemini", "freellm"})
     if unknown:
         raise ValueError(f"unsupported AI providers: {', '.join(unknown)}")
     document = os.getenv("BEWERBERMAPPE_PATH", "").strip()
@@ -154,6 +159,10 @@ def load_settings() -> Settings:
             int(raw_id) if (raw_id := os.getenv("TELEGRAM_ALLOWED_USER_ID", "").strip()) else None
         ),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", "").strip(),
+        freellm_base_url=os.getenv("FREELLM_BASE_URL", "http://127.0.0.1:3001/v1").strip(),
+        freellm_api_key=os.getenv("FREELLM_API_KEY", "").strip(),
+        freellm_model=os.getenv("FREELLM_MODEL", "").strip(),
+        freellm_timeout_seconds=env_int("FREELLM_TIMEOUT_SECONDS", default_ai_timeout),
     )
 
 
